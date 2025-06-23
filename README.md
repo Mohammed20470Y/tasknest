@@ -1,26 +1,41 @@
-# 📦 TaskNest
+# 🐦 TaskNest
 
-A lightweight RESTful API for managing tasks, built with Go and SQLite.  
-This project is designed to demonstrate clean, modular web development with Go, database integration, and container-ready deployment.
-
----
-
-## 🌱 Tech Stack
-
-- **Go (latest stable)**
-- **SQLite** (`mattn/go-sqlite3`)
-- **net/http** (standard library)
-- **Docker** (coming soon)
+**A minimalist, clean REST API for managing tasks — written in Go using SQLite.**
 
 ---
 
-## 📖 Getting Started
+## 📦 Features
 
-### 📦 Clone the repository
+- 📖 REST API with:
+  - `GET /health` — service status check
+  - `GET /tasks` — list all tasks
+  - `POST /tasks` — create a new task
+  - `GET /tasks/{id}` — get task by ID
+  - `PUT /tasks/{id}` — update task by ID
+  - `DELETE /tasks/{id}` — delete task by ID
+- 🗄️ SQLite integration for local, lightweight data persistence
+- 🧪 Comprehensive unit tests using `net/http/httptest`
+- 🛡️ Isolated test database setup for clean, reliable tests
+
+---
+
+## 🛠️ Tech Stack
+
+- Go 1.22+
+- SQLite
+- Standard `net/http` package (no third-party routers)
+- `net/http/httptest` for testing
+
+---
+
+## 🚀 Getting Started
+
+### 1️⃣ Clone the repo
 
 ```bash
 git clone https://github.com/Mohammed20470Y/tasknest.git
 cd tasknest
+### 📦 Clone the repository
 ```
 📦 Install Dependencies
 ```bash
