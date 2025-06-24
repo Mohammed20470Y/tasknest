@@ -16,6 +16,11 @@
 - 🗄️ SQLite integration for local, lightweight data persistence
 - 🧪 Comprehensive unit tests using `net/http/httptest`
 - 🛡️ Isolated test database setup for clean, reliable tests
+- Simple RESTful task management API built with Go and SQLite.
+- Modular validation system for task creation and updates.
+- Structured JSON error messages for validation errors.
+- Comprehensive unit tests for validation and HTTP handlers.
+- Isolated test database for safe, repeatable tests.
 
 ---
 
@@ -44,6 +49,14 @@ go mod tidy
 📦 Run the Application
 ```bash
 go run main.go
+```
+## 🧪 Running Tests
+
+To run all unit and handler tests:
+
+```bash
+go test ./...
+
 ```
 
 🔌 API Endpoints (Current)

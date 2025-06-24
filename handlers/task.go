@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Mohammed20470Y/tasknest/validators"
 	"github.com/Mohammed20470Y/tasknest/models"
 )
 
@@ -43,20 +44,29 @@ func CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	var task models.Task
 
-	// Decode JSON request body into Task struct
+	// Decode JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		log.Printf("Failed to parse request body: %v", err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
+	// Validate input
+	validationErrors := validators.ValidateTaskInput(task.Title, task.Description, task.Status)
+	if len(validationErrors) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(validationErrors)
+		return
+	}
+
 	// Set default values
-	if task.Status == "" {
+	if strings.TrimSpace(task.Status) == "" {
 		task.Status = "pending"
 	}
 	task.CreatedAt = time.Now()
 
-	// Save to database
+	// Save to DB
 	if err := models.CreateTask(&task); err != nil {
 		log.Printf("Failed to create task: %v", err)
 		http.Error(w, "Failed to create task", http.StatusInternalServerError)
@@ -65,7 +75,6 @@ func CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-
 	if err := json.NewEncoder(w).Encode(task); err != nil {
 		log.Printf("Failed to encode response: %v", err)
 		http.Error(w, "Failed to return task", http.StatusInternalServerError)
@@ -105,7 +114,6 @@ func GetTaskByIDHandler(w http.ResponseWriter, r *http.Request) {
 
 // UpdateTaskHandler updates a task by ID
 func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	// Only allow PUT
 	if r.Method != http.MethodPut {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
@@ -131,10 +139,19 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate input
+	validationErrors := validators.ValidateTaskInput(task.Title, task.Description, task.Status)
+	if len(validationErrors) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(validationErrors)
+		return
+	}
+
 	// Set task ID from URL
 	task.ID = id
 
-	// Update in database
+	// Update in DB
 	if err := models.UpdateTask(&task); err != nil {
 		log.Printf("Failed to update task: %v", err)
 		http.Error(w, "Failed to update task", http.StatusInternalServerError)
