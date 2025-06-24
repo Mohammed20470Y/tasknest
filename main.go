@@ -8,59 +8,56 @@ import (
 
 	"github.com/Mohammed20470Y/tasknest/db"
 	"github.com/Mohammed20470Y/tasknest/handlers"
+	"github.com/Mohammed20470Y/tasknest/middlewares"
+	"github.com/gorilla/mux"
 )
 
 func main() {
-	// Set database file path
+	// Database setup
 	dbFile := "tasknest.db"
-
-	// Initialize database connection
 	if err := db.InitDB(dbFile); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.CloseDB()
-
-	// Run migration to create tables
 	if err := db.Migrate(); err != nil {
 		log.Fatalf("Failed to run database migration: %v", err)
 	}
 
-	// Simple health check route
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "TaskNest API is alive!")
-	})
+	// Initialize router
+	router := mux.NewRouter()
 
-	// Define the server port
+	// Apply Logging Middleware globally
+	router.Use(middlewares.LoggingMiddleware)
+	// Apply Recovery Middlewares
+	router.Use(middlewares.RecoveryMiddleware)
+	// Apply CORS Middleware
+	router.Use(middlewares.CORSMiddleware)
+	// Health check route
+	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "TaskNest API is alive!")
+	}).Methods("GET")
+
+	// Task routes
+	router.HandleFunc("/tasks", handlers.GetAllTasksHandler).Methods("GET")
+	router.HandleFunc("/tasks", handlers.CreateTaskHandler).Methods("POST")
+	router.HandleFunc("/tasks/{id:[0-9]+}", handlers.GetTaskByIDHandler).Methods("GET")
+	router.HandleFunc("/tasks/{id:[0-9]+}", handlers.UpdateTaskHandler).Methods("PUT")
+	router.HandleFunc("/tasks/{id:[0-9]+}", handlers.DeleteTaskHandler).Methods("DELETE")
+
+	//Panic Check route
+	router.HandleFunc("/panic", PanicHandler).Methods("GET")
+
+	// Server port
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handlers.GetAllTasksHandler(w, r)
-		case http.MethodPost:
-			handlers.CreateTaskHandler(w, r)
-		default:
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	http.HandleFunc("/tasks/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handlers.GetTaskByIDHandler(w, r)
-		case http.MethodPut:
-			handlers.UpdateTaskHandler(w, r)
-		case http.MethodDelete:
-			handlers.DeleteTaskHandler(w, r)
-		default:
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		}
-	})
 
-	// Start HTTP server
 	log.Printf("Server running on port %s 🚀", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := http.ListenAndServe(":"+port, router); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+func PanicHandler(w http.ResponseWriter, r *http.Request) {
+	panic("something exploded")
 }

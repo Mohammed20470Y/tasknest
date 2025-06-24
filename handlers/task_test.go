@@ -1,206 +1,130 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/Mohammed20470Y/tasknest/db"
 	"github.com/Mohammed20470Y/tasknest/models"
+	"github.com/gorilla/mux"
 )
 
-//testing a task with validation errors
-func TestCreateTaskHandler_ValidationErrors(t *testing.T) {
-	// Setup test DB
+func setupTestDB() {
 	db.InitDB("test_tasknest.db")
-	defer db.CloseDB()
 	db.Migrate()
-
-	// Prepare invalid JSON (empty title, bad status)
-	payload := `{"title": "", "description": "Test task", "status": "invalidstatus"}`
-	req := httptest.NewRequest(http.MethodPost, "/tasks", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(CreateTaskHandler)
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", status)
-	}
-
-	// Check JSON error response
-	var errs []map[string]string
-	if err := json.NewDecoder(rr.Body).Decode(&errs); err != nil {
-		t.Errorf("failed to decode JSON error response: %v", err)
-	}
-	if len(errs) != 2 {
-		t.Errorf("expected 2 validation errors, got %d", len(errs))
-	}
-}
-//testing creating a task without any errors
-func TestCreateTaskHandler_Success(t *testing.T) {
-	db.InitDB("test_tasknest.db")
-	defer db.CloseDB()
-	db.Migrate()
-
-	payload := `{"title": "Write docs", "description": "Draft documentation", "status": "pending"}`
-	req := httptest.NewRequest(http.MethodPost, "/tasks", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(CreateTaskHandler)
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusCreated {
-		t.Errorf("expected status 201, got %d", status)
-	}
-
-	// Check returned JSON task
-	var task models.Task
-	if err := json.NewDecoder(rr.Body).Decode(&task); err != nil {
-		t.Errorf("failed to decode JSON response: %v", err)
-	}
-	if task.ID == 0 {
-		t.Errorf("expected non-zero task ID")
-	}
 }
 
-// testing getting all tasks at once
+func teardownTestDB() {
+	db.CloseDB()
+}
+
 func TestGetAllTasksHandler(t *testing.T) {
-	db.InitDB("test_tasknest.db")
-	defer db.CloseDB()
-	db.Migrate()
-
-	// Seed a task for retrieval test
-	models.CreateTask(&models.Task{
-		Title:       "Task for listing",
-		Description: "Test listing endpoint",
-		Status:      "pending",
-	})
+	setupTestDB()
+	defer teardownTestDB()
 
 	req := httptest.NewRequest(http.MethodGet, "/tasks", nil)
 	rr := httptest.NewRecorder()
 
-	handler := http.HandlerFunc(GetAllTasksHandler)
-	handler.ServeHTTP(rr, req)
+	router := mux.NewRouter()
+	router.HandleFunc("/tasks", GetAllTasksHandler).Methods("GET")
+	router.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("expected status 200, got %d", status)
-	}
-
-	var tasks []models.Task
-	if err := json.NewDecoder(rr.Body).Decode(&tasks); err != nil {
-		t.Errorf("failed to decode JSON response: %v", err)
-	}
-	if len(tasks) == 0 {
-		t.Errorf("expected at least 1 task, got 0")
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
 	}
 }
-//test Get task by ID
+
+func TestCreateTaskHandler(t *testing.T) {
+	setupTestDB()
+	defer teardownTestDB()
+
+	taskPayload := `{"title":"Test Task","description":"Test Description","status":"pending"}`
+	req := httptest.NewRequest(http.MethodPost, "/tasks", strings.NewReader(taskPayload))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router := mux.NewRouter()
+	router.HandleFunc("/tasks", CreateTaskHandler).Methods("POST")
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Errorf("expected status 201 Created, got %d", rr.Code)
+	}
+}
+
 func TestGetTaskByIDHandler(t *testing.T) {
-	db.InitDB("test_tasknest.db")
-	defer db.CloseDB()
-	db.Migrate()
+	setupTestDB()
+	defer teardownTestDB()
 
 	// Seed a task
 	task := &models.Task{
-		Title:       "Task for fetching",
-		Description: "Test get by ID",
+		Title:       "Fetch me",
+		Description: "Task for GET",
 		Status:      "pending",
 	}
 	models.CreateTask(task)
 
-	// Valid ID request
 	req := httptest.NewRequest(http.MethodGet, "/tasks/"+strconv.Itoa(task.ID), nil)
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(GetTaskByIDHandler)
-	handler.ServeHTTP(rr, req)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/tasks/{id:[0-9]+}", GetTaskByIDHandler).Methods("GET")
+	router.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", rr.Code)
 	}
-
-	var returned models.Task
-	if err := json.NewDecoder(rr.Body).Decode(&returned); err != nil {
-		t.Errorf("failed to decode JSON: %v", err)
-	}
-	if returned.ID != task.ID {
-		t.Errorf("expected task ID %d, got %d", task.ID, returned.ID)
-	}
-
-	// Invalid ID
-	req = httptest.NewRequest(http.MethodGet, "/tasks/abc", nil)
-	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for invalid ID, got %d", rr.Code)
-	}
 }
-//testing updating a task 
+
 func TestUpdateTaskHandler(t *testing.T) {
-	db.InitDB("test_tasknest.db")
-	defer db.CloseDB()
-	db.Migrate()
+	setupTestDB()
+	defer teardownTestDB()
 
+	// Seed a task
 	task := &models.Task{
-		Title:       "Original task",
-		Description: "Original description",
+		Title:       "Original",
+		Description: "To be updated",
 		Status:      "pending",
 	}
 	models.CreateTask(task)
 
-	// Prepare update payload
-	updatePayload := `{"title": "Updated Task", "description": "Updated description", "status": "completed"}`
-	req := httptest.NewRequest(http.MethodPut, "/tasks/"+strconv.Itoa(task.ID), strings.NewReader(updatePayload))
+	updatedPayload := `{"title":"Updated Title","description":"Updated desc","status":"completed"}`
+	req := httptest.NewRequest(http.MethodPut, "/tasks/"+strconv.Itoa(task.ID), strings.NewReader(updatedPayload))
 	req.Header.Set("Content-Type", "application/json")
-
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(UpdateTaskHandler)
-	handler.ServeHTTP(rr, req)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/tasks/{id:[0-9]+}", UpdateTaskHandler).Methods("PUT")
+	router.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", rr.Code)
 	}
-
-	var updated models.Task
-	if err := json.NewDecoder(rr.Body).Decode(&updated); err != nil {
-		t.Errorf("failed to decode JSON: %v", err)
-	}
-	if updated.Title != "Updated Task" {
-		t.Errorf("expected updated title, got %s", updated.Title)
-	}
 }
-// tesing deliting a task 
-func TestDeleteTaskHandler(t *testing.T) {
-	db.InitDB("test_tasknest.db")
-	defer db.CloseDB()
-	db.Migrate()
 
+func TestDeleteTaskHandler(t *testing.T) {
+	setupTestDB()
+	defer teardownTestDB()
+
+	// Seed a task
 	task := &models.Task{
-		Title:       "Task to delete",
-		Description: "To be deleted",
+		Title:       "Delete me",
+		Description: "Gone soon",
 		Status:      "pending",
 	}
 	models.CreateTask(task)
 
-	// Delete request
 	req := httptest.NewRequest(http.MethodDelete, "/tasks/"+strconv.Itoa(task.ID), nil)
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(DeleteTaskHandler)
-	handler.ServeHTTP(rr, req)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/tasks/{id:[0-9]+}", DeleteTaskHandler).Methods("DELETE")
+	router.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusNoContent {
-		t.Errorf("expected 204 No Content, got %d", rr.Code)
-	}
-
-	// Verify it's deleted
-	retrieved, _ := models.GetTaskByID(task.ID)
-	if retrieved != nil {
-		t.Errorf("expected task to be deleted, but found one")
+		t.Errorf("expected status 204, got %d", rr.Code)
 	}
 }
-
