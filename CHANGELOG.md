@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.1.0] — 2025-06-23
 
 ### 🎉 Added
+
 - Initialized Go module and project structure.
 - Installed SQLite3 driver (`mattn/go-sqlite3`).
 - Created database connection setup in `db/sqlite.go`.
@@ -21,6 +22,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.1.1] — 2025-06-23
 
 ### ✨ Added
+
 - Defined `Task` model struct and CRUD functions.
 - Implemented `POST /tasks`, `GET /tasks`, `GET /tasks/{id}`, `PUT /tasks/{id}`, `DELETE /tasks/{id}` endpoints.
 - Added simple validation for task creation.
@@ -32,6 +34,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.1.2] — 2025-06-24
 
 ### ✨ Added
+
 - Switched routing to **Gorilla Mux**.
 - Implemented **CORS middleware**.
 - Implemented **Logging middleware** for HTTP request logs.
@@ -46,6 +49,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## 📌 Future Plans (Next Release)
 
 ### ✨ Planned
+
 - JWT-based authentication system.
 - Pagination & filtering on task listings.
 - API rate limiting middleware.
@@ -58,6 +62,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## 📦 Deprecated / Completed from Previous Plans
 
 **Removed:**
+
 - _Task CRUD endpoints in development_ — ✅ completed in `0.1.1`
 - _Basic server setup with health check_ — ✅ completed in `0.1.0`
 - _Middlewares_ — ✅ completed in `0.1.2`
@@ -65,5 +70,3 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - _Modular validation system_ — ✅ completed in `0.1.2`
 
 ---
-
-

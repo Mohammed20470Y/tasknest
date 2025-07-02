@@ -12,52 +12,67 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// main is the entry point of the TaskNest application.
+// It initializes the database, sets up the router, applies middleware, defines routes, and starts the HTTP server.
 func main() {
-	// Database setup
+	// 📦 Database setup: Initialize and connect to SQLite database
 	dbFile := "tasknest.db"
 	if err := db.InitDB(dbFile); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.CloseDB()
+
+	// Run database migrations to create required tables if not existing
 	if err := db.Migrate(); err != nil {
 		log.Fatalf("Failed to run database migration: %v", err)
 	}
 
-	// Initialize router
+	// 🌐 Initialize Gorilla Mux router
 	router := mux.NewRouter()
 
-	// Apply Logging Middleware globally
+	// 📝 Apply global middleware:
+	// - Logs every incoming request with method, path, and response duration
 	router.Use(middlewares.LoggingMiddleware)
-	// Apply Recovery Middlewares
+	// - Recovers from any panics and returns a structured 500 error response
 	router.Use(middlewares.RecoveryMiddleware)
-	// Apply CORS Middleware
+	// - Enables CORS for safe cross-origin requests
 	router.Use(middlewares.CORSMiddleware)
-	// Health check route
+
+	// 📍 Health check route — simple ping endpoint to verify service availability
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "TaskNest API is alive!")
 	}).Methods("GET")
 
-	// Task routes
-	router.HandleFunc("/tasks", handlers.GetAllTasksHandler).Methods("GET")
-	router.HandleFunc("/tasks", handlers.CreateTaskHandler).Methods("POST")
-	router.HandleFunc("/tasks/{id:[0-9]+}", handlers.GetTaskByIDHandler).Methods("GET")
-	router.HandleFunc("/tasks/{id:[0-9]+}", handlers.UpdateTaskHandler).Methods("PUT")
-	router.HandleFunc("/tasks/{id:[0-9]+}", handlers.DeleteTaskHandler).Methods("DELETE")
+	// 🔐 Public login route — returns JWT token on successful login
+	router.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
 
-	//Panic Check route
+	// 📋 Protected Task routes (CRUD operations)
+	// These routes require a valid JWT token in the `Authorization` header.
+
+	router.Handle("/tasks", middlewares.AuthMiddleware(http.HandlerFunc(handlers.GetAllTasksHandler))).Methods("GET")
+	router.Handle("/tasks", middlewares.AuthMiddleware(http.HandlerFunc(handlers.CreateTaskHandler))).Methods("POST")
+	router.Handle("/tasks/{id:[0-9]+}", middlewares.AuthMiddleware(http.HandlerFunc(handlers.GetTaskByIDHandler))).Methods("GET")
+	router.Handle("/tasks/{id:[0-9]+}", middlewares.AuthMiddleware(http.HandlerFunc(handlers.UpdateTaskHandler))).Methods("PUT")
+	router.Handle("/tasks/{id:[0-9]+}", middlewares.AuthMiddleware(http.HandlerFunc(handlers.DeleteTaskHandler))).Methods("DELETE")
+
+	// 🧨 Panic test route (for testing RecoveryMiddleware)
 	router.HandleFunc("/panic", PanicHandler).Methods("GET")
 
-	// Server port
+	// 📡 Define server port (default: 8080 if not set via environment variable)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
+	// 🚀 Start HTTP server
 	log.Printf("Server running on port %s 🚀", port)
 	if err := http.ListenAndServe(":"+port, router); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
+
+// PanicHandler deliberately triggers a panic to test the recovery middleware.
+// It simulates a server-side crash scenario.
 func PanicHandler(w http.ResponseWriter, r *http.Request) {
-	panic("something exploded")
+	panic("🔥 something exploded!")
 }
